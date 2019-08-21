@@ -1,26 +1,20 @@
 package me.cunzai.bilichecker.manager;
 
 import com.google.gson.JsonObject;
-import com.google.gson.internal.$Gson$Preconditions;
 import me.cunzai.bilichecker.Main;
+import me.cunzai.bilichecker.data.Data;
 import me.cunzai.bilichecker.util.JsonUtil;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 public class RequestManager {
     private Main plugin;
-    private Map<UUID,String> passed;
 
     public RequestManager(Main main){
         this.plugin = main;
-        this.passed = new HashMap<>();
     }
 
-    public boolean check(final UUID uuid,final String mid){
+    public String check(final String mid) {
 
                 JsonObject json;
                 try {
@@ -28,7 +22,7 @@ public class RequestManager {
                 }catch (Exception e){
                     e.printStackTrace();
                     plugin.getLogger().info("获取粉丝数时异常！请确认插件版本是否是最新版并且服务器网络通畅");
-                    return false;
+                    return null;
                 }
                 if (json!=null&&json.get("status").getAsString().equalsIgnoreCase("OK")){
                     if (json.get("data").getAsJsonObject().get("card").getAsJsonObject().get("fans").getAsInt()>= plugin.getConfigManager().getFans()){
@@ -36,28 +30,42 @@ public class RequestManager {
                             JsonObject jsonObject = JsonUtil.getJson(new URL("http://api.bilibili.com/x/space/upstat?mid="+mid));
                             if (jsonObject!=null&&jsonObject.get("code").getAsInt()==0){
                                 if (jsonObject.get("data").getAsJsonObject().get("archive").getAsJsonObject().get("view").getAsInt()>=plugin.getConfigManager().getViews()){
-                                    passed.put(uuid,mid);
-                                    return true;
-                                }else return false;
+                                    return json.get("data").getAsJsonObject().get("card").getAsJsonObject().get("sign").getAsString();
+                                }
+                                return null;
                             }else {
                                 plugin.getLogger().info("获取播放数时异常！请确认插件版本是否是最新版并且服务器网络通畅");
-                                return false;
+                                return null;
                             }
 
                         }catch (Exception e){
                             e.printStackTrace();
                             plugin.getLogger().info("获取播放数时异常！请确认插件版本是否是最新版并且服务器网络通畅");
-                            return false;
+                            return null;
                         }
 
-                    }else return false;
-                }else {
+                    } else return null;
+                } else {
                     plugin.getLogger().info("获取粉丝数时异常！请确认插件版本是否是最新版并且服务器网络通畅");
-                    return false;
+                    return null;
                 }
     }
 
-    public Map<UUID, String> getPassed() {
-        return passed;
+    public boolean checkSign(Data data) {
+        JsonObject json;
+        try {
+            json = JsonUtil.getJson(new URL("http://api.kaaass.net/biliapi/user/space?id=" + data.getMid()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            plugin.getLogger().info("获取签名时异常！请确认插件版本是否是最新版并且服务器网络通畅");
+            return false;
+        }
+        if (json != null && json.get("status").getAsString().equalsIgnoreCase("OK")) {
+            return json.get("data").getAsJsonObject().get("card").getAsJsonObject().get("sign").getAsString().equals(Main.getIns().getConfigManager().getVerify() + data.getCode());
+
+        } else {
+            plugin.getLogger().info("获取签名时异常！请确认插件版本是否是最新版并且服务器网络通畅");
+            return false;
+        }
     }
 }
